@@ -55,8 +55,8 @@ def process_and_mail():
         print(f"❌ 無法取得資料: {status}")
         return
 
-    # 資料清洗與計算
     try:
+        # 1. 資料清洗
         cols = ['成交金額', '收盤價', '漲跌價差']
         for col in cols:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', ''), errors='coerce')
@@ -66,20 +66,36 @@ def process_and_mail():
         df['成交額(億)'] = (df['成交金額'] / 100000000).round(1)
         df['漲幅'] = df['漲幅'].round(2)
 
-        # 篩選前 20 檔強勢股
+        # 2. 篩選前 20 檔
         top_20 = df[df['漲幅'] > 2.5].sort_values(by='成交金額', ascending=False).head(20).copy()
 
-        # 為證券名稱建立超連結 (連結至 Yahoo 股市)
+        # 3. 核心修改：漲幅顏色分級功能
+        def format_change_color(row):
+            change = row['漲幅']
+            # 漲幅 > 5% 顯示為鮮紅色並加粗
+            if change > 5.0:
+                color = "#FF0000" 
+                weight = "bold"
+            # 漲幅 2.5% ~ 5% 顯示為一般紅色
+            else:
+                color = "#D20000"
+                weight = "normal"
+            return f'<span style="color: {color}; font-weight: {weight};">{change:.2f}%</span>'
+
+        # 4. 核心修改：建立 Yahoo 連結
         def create_link(row):
             code = str(row['證券代號']).strip()
             name = row['證券名稱']
             url = f"https://tw.stock.yahoo.com/quote/{code}"
             return f'<a href="{url}" style="text-decoration:none; color:#0066cc; font-weight:bold;">{name}</a>'
 
+        # 套用格式化
+        top_20['漲幅'] = top_20.apply(format_change_color, axis=1)
         top_20['證券名稱'] = top_20.apply(create_link, axis=1)
+        
         top_20 = top_20[['證券代號', '證券名稱', '收盤價', '漲幅', '成交額(億)']]
 
-        # HTML 表格樣式
+        # 5. HTML 樣式設定
         html_style = """
         <style>
             table { border-collapse: collapse; width: 100%; font-family: "Microsoft JhengHei", sans-serif; }
@@ -87,10 +103,10 @@ def process_and_mail():
             td { padding: 10px; border-bottom: 1px solid #ddd; }
             tr:nth-child(even) { background-color: #f9f9f9; }
             tr:hover { background-color: #f1f1f1; }
-            .up { color: #d20000; font-weight: bold; }
         </style>
         """
         
+        # 生成表格 (escape=False 才能渲染 HTML 標籤)
         table_html = top_20.to_html(index=False, classes='stock-table', escape=False)
 
         full_html = f"""
@@ -99,7 +115,7 @@ def process_and_mail():
         <body>
             <h2 style="color: #2c3e50;">📈 台股盤後強勢股篩選報告</h2>
             <p>報告日期：{datetime.datetime.now().strftime('%Y-%m-%d')}</p>
-            <p style="font-size: 14px; color: #666;">💡 提示：點擊「證券名稱」可直接跳轉至 Yahoo 股市查看線圖。</p>
+            <p style="font-size: 14px; color: #666;">💡 提示：漲幅超過 5% 以<b>鮮紅色</b>標示；點擊名稱查看線圖。</p>
             <hr>
             {table_html}
             <br>
