@@ -30,28 +30,25 @@ def get_stock_data():
         return None, str(e)
 
 def send_email_report(html_content, date_str):
-    # 建立郵件物件
-    msg = MIMEMultipart()
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = RECEIVER_EMAIL
-    msg['Subject'] = f"📊 台股強勢股日報 - {date_str}"
-
-    # 指定 'html' 格式與 'utf-8' 編碼
-    part = MIMEText(html_content, 'html', 'utf-8')
-    msg.attach(part)
-
     try:
-        # 使用 Gmail SMTP 伺服器
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
+        # 這裡會使用您 Secrets 裡的 MY_EMAIL 和 MY_PASSWORD
         server.login(SENDER_EMAIL, APP_PASSWORD)
         
-        # 使用 send_message 自動處理編碼轉換
-        server.send_message(msg)
+        for receiver in RECEIVER_EMAILS:
+            msg = MIMEMultipart()
+            msg['From'] = SENDER_EMAIL
+            msg['To'] = receiver
+            msg['Subject'] = f"📊 台股強勢股日報 - {date_str}"
+            msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+            
+            server.send_message(msg)
+            print(f"✅ 成功寄送給: {receiver}")
+            
         server.quit()
-        print(f"✅ 郵件發送成功！已寄至 {RECEIVER_EMAIL}")
     except Exception as e:
-        print(f"❌ 郵件發送失敗: {str(e)}")
+        print(f"❌ 郵件發送失敗: {e}")
 
 def process_and_mail():
     df, status = get_stock_data()
