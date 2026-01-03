@@ -69,7 +69,7 @@ def process_and_mail():
         # 2. 核心篩選（漲幅需 > 2.5%）
         filtered_df = df[df['漲幅'] > 2.5].copy()
 
-        # 3. 定義格式化函數 (超連結與顏色)
+        # 3. 定義格式化函數
         def create_link(row):
             code = str(row['證券代號']).strip()
             name = row['證券名稱']
@@ -80,26 +80,27 @@ def process_and_mail():
             weight = "bold" if val > 5.0 else "normal"
             return f'<span style="color: {color}; font-weight: {weight};">{val:.2f}%</span>'
 
-        # 4. 準備三種排序的 HTML 表格
+        # 4. 準備兩種排序的 HTML 表格 (各取前 20 檔)
         def generate_styled_table(data_df, sort_by):
-            temp_df = data_df.sort_values(by=sort_by, ascending=False).head(10).copy()
+            temp_df = data_df.sort_values(by=sort_by, ascending=False).head(20).copy()
             # 轉換顯示格式
             temp_df['證券名稱'] = temp_df.apply(create_link, axis=1)
             temp_df['漲幅'] = temp_df['漲幅'].apply(format_change_color)
             return temp_df[['證券代號', '證券名稱', '收盤價', '漲幅', '成交額(億)']].to_html(index=False, escape=False)
 
-        # 產生三個表格
+        # 產生兩個看板
         table_volume = generate_styled_table(filtered_df, '成交金額')
         table_gain = generate_styled_table(filtered_df, '漲幅')
-        table_price = generate_styled_table(filtered_df, '收盤價')
 
         # 5. HTML 樣式與組合
         html_style = """
         <style>
-            table { border-collapse: collapse; width: 100%; font-family: "Microsoft JhengHei", sans-serif; margin-bottom: 20px; }
-            th { background-color: #4CAF50; color: white; padding: 10px; text-align: left; }
-            td { padding: 8px; border-bottom: 1px solid #ddd; }
-            h3 { color: #2c3e50; border-left: 5px solid #4CAF50; padding-left: 10px; margin-top: 30px; }
+            table { border-collapse: collapse; width: 100%; font-family: "Microsoft JhengHei", sans-serif; margin-bottom: 30px; }
+            th { background-color: #4CAF50; color: white; padding: 12px; text-align: left; position: sticky; top: 0; }
+            td { padding: 10px; border-bottom: 1px solid #ddd; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            tr:hover { background-color: #f1f1f1; }
+            h3 { color: #2c3e50; border-left: 6px solid #4CAF50; padding-left: 12px; margin-top: 40px; }
         </style>
         """
         
@@ -107,21 +108,21 @@ def process_and_mail():
         <html>
         <head>{html_style}</head>
         <body>
-            <h2 style="color: #2c3e50;">📈 台股盤後多維度強勢股報告</h2>
+            <h2 style="color: #2c3e50;">📈 台股盤後強勢股篩選報告</h2>
             <p>報告日期：{datetime.datetime.now().strftime('%Y-%m-%d')}</p>
+            <p style="color: #666;">篩選條件：漲幅 > 2.5%</p>
             <hr>
             
-            <h3>🔥 資金焦點：成交額 Top 10 (強勢股)</h3>
+            <h3>🔥 資金焦點：成交額 Top 20</h3>
+            <p style="font-size: 14px; color: #888;">此表依成交金額排序，反映市場大資金流向。</p>
             {table_volume}
             
-            <h3>🚀 漲幅先鋒：漲幅 Top 10 (強勢股)</h3>
+            <h3>🚀 漲幅先鋒：漲幅 Top 20</h3>
+            <p style="font-size: 14px; color: #888;">此表依漲幅排序，反映當前盤勢最強勁的個股。</p>
             {table_gain}
             
-            <h3>💎 高價指標：股價 Top 10 (強勢股)</h3>
-            {table_price}
-            
             <br>
-            <p style="color: gray; font-size: 12px;">註：以上列表皆已先篩選漲幅 > 2.5% 之個股。點擊名稱看線圖。</p>
+            <p style="color: gray; font-size: 12px; margin-top: 20px;">註：點擊證券名稱可查看 Yahoo 股市技術線圖。資料來源：證交所 Open Data。</p>
         </body>
         </html>
         """
@@ -129,5 +130,6 @@ def process_and_mail():
         send_email_report(full_html, datetime.datetime.now().strftime('%Y-%m-%d'))
     except Exception as e:
         print(f"❌ 資料處理發生錯誤: {e}")
+        
 if __name__ == "__main__":
     process_and_mail()
