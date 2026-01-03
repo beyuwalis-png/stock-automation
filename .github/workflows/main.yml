@@ -1,0 +1,30 @@
+name: Stock Report Automation
+
+on:
+  schedule:
+    # 台灣時間 17:00 等於 UTC 時間 09:00
+    - cron: '0 9 * * 1-5'
+  workflow_dispatch: # 加入這個按鈕讓你可以手動測試執行
+
+jobs:
+  run-python-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. 複製儲存庫檔案
+        uses: actions/checkout@v3
+
+      - name: 2. 設定 Python 環境
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 3. 安裝必要套件
+        run: |
+          pip install requests pandas
+
+      - name: 4. 執行 Python 程式
+        env:
+          # 將剛剛設定的 Secrets 傳入 Python 環境
+          MY_EMAIL: ${{ secrets.MY_EMAIL }}
+          MY_PASSWORD: ${{ secrets.MY_PASSWORD }}
+        run: python stock_mail.py
