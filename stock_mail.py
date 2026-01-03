@@ -66,60 +66,62 @@ def process_and_mail():
         df['成交額(億)'] = (df['成交金額'] / 100000000).round(1)
         df['漲幅'] = df['漲幅'].round(2)
 
-        # 2. 篩選前 20 檔
-        top_20 = df[df['漲幅'] > 2.5].sort_values(by='成交金額', ascending=False).head(20).copy()
+        # 2. 核心篩選（漲幅需 > 2.5%）
+        filtered_df = df[df['漲幅'] > 2.5].copy()
 
-        # 3. 核心修改：漲幅顏色分級功能
-        def format_change_color(row):
-            change = row['漲幅']
-            # 漲幅 > 5% 顯示為鮮紅色並加粗
-            if change > 5.0:
-                color = "#FF0000" 
-                weight = "bold"
-            # 漲幅 2.5% ~ 5% 顯示為一般紅色
-            else:
-                color = "#D20000"
-                weight = "normal"
-            return f'<span style="color: {color}; font-weight: {weight};">{change:.2f}%</span>'
-
-        # 4. 核心修改：建立 Yahoo 連結
+        # 3. 定義格式化函數 (超連結與顏色)
         def create_link(row):
             code = str(row['證券代號']).strip()
             name = row['證券名稱']
-            url = f"https://tw.stock.yahoo.com/quote/{code}"
-            return f'<a href="{url}" style="text-decoration:none; color:#0066cc; font-weight:bold;">{name}</a>'
+            return f'<a href="https://tw.stock.yahoo.com/quote/{code}" style="text-decoration:none; color:#0066cc; font-weight:bold;">{name}</a>'
 
-        # 套用格式化
-        top_20['漲幅'] = top_20.apply(format_change_color, axis=1)
-        top_20['證券名稱'] = top_20.apply(create_link, axis=1)
-        
-        top_20 = top_20[['證券代號', '證券名稱', '收盤價', '漲幅', '成交額(億)']]
+        def format_change_color(val):
+            color = "#FF0000" if val > 5.0 else "#D20000"
+            weight = "bold" if val > 5.0 else "normal"
+            return f'<span style="color: {color}; font-weight: {weight};">{val:.2f}%</span>'
 
-        # 5. HTML 樣式設定
+        # 4. 準備三種排序的 HTML 表格
+        def generate_styled_table(data_df, sort_by):
+            temp_df = data_df.sort_values(by=sort_by, ascending=False).head(10).copy()
+            # 轉換顯示格式
+            temp_df['證券名稱'] = temp_df.apply(create_link, axis=1)
+            temp_df['漲幅'] = temp_df['漲幅'].apply(format_change_color)
+            return temp_df[['證券代號', '證券名稱', '收盤價', '漲幅', '成交額(億)']].to_html(index=False, escape=False)
+
+        # 產生三個表格
+        table_volume = generate_styled_table(filtered_df, '成交金額')
+        table_gain = generate_styled_table(filtered_df, '漲幅')
+        table_price = generate_styled_table(filtered_df, '收盤價')
+
+        # 5. HTML 樣式與組合
         html_style = """
         <style>
-            table { border-collapse: collapse; width: 100%; font-family: "Microsoft JhengHei", sans-serif; }
-            th { background-color: #4CAF50; color: white; padding: 12px; text-align: left; }
-            td { padding: 10px; border-bottom: 1px solid #ddd; }
-            tr:nth-child(even) { background-color: #f9f9f9; }
-            tr:hover { background-color: #f1f1f1; }
+            table { border-collapse: collapse; width: 100%; font-family: "Microsoft JhengHei", sans-serif; margin-bottom: 20px; }
+            th { background-color: #4CAF50; color: white; padding: 10px; text-align: left; }
+            td { padding: 8px; border-bottom: 1px solid #ddd; }
+            h3 { color: #2c3e50; border-left: 5px solid #4CAF50; padding-left: 10px; margin-top: 30px; }
         </style>
         """
         
-        # 生成表格 (escape=False 才能渲染 HTML 標籤)
-        table_html = top_20.to_html(index=False, classes='stock-table', escape=False)
-
         full_html = f"""
         <html>
         <head>{html_style}</head>
         <body>
-            <h2 style="color: #2c3e50;">📈 台股盤後強勢股篩選報告</h2>
+            <h2 style="color: #2c3e50;">📈 台股盤後多維度強勢股報告</h2>
             <p>報告日期：{datetime.datetime.now().strftime('%Y-%m-%d')}</p>
-            <p style="font-size: 14px; color: #666;">💡 提示：漲幅超過 5% 以<b>鮮紅色</b>標示；點擊名稱查看線圖。</p>
             <hr>
-            {table_html}
+            
+            <h3>🔥 資金焦點：成交額 Top 10 (強勢股)</h3>
+            {table_volume}
+            
+            <h3>🚀 漲幅先鋒：漲幅 Top 10 (強勢股)</h3>
+            {table_gain}
+            
+            <h3>💎 高價指標：股價 Top 10 (強勢股)</h3>
+            {table_price}
+            
             <br>
-            <p style="color: gray; font-size: 12px;">資料來源：臺灣證券交易所 Open Data</p>
+            <p style="color: gray; font-size: 12px;">註：以上列表皆已先篩選漲幅 > 2.5% 之個股。點擊名稱看線圖。</p>
         </body>
         </html>
         """
@@ -127,6 +129,5 @@ def process_and_mail():
         send_email_report(full_html, datetime.datetime.now().strftime('%Y-%m-%d'))
     except Exception as e:
         print(f"❌ 資料處理發生錯誤: {e}")
-
 if __name__ == "__main__":
     process_and_mail()
