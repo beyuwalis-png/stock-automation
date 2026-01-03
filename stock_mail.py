@@ -7,10 +7,14 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-# --- 郵件設定 (從 GitHub Secrets 環境變數讀取) ---
+# --- 郵件設定 (從系統環境變數讀取) ---
 SENDER_EMAIL = os.environ.get('MY_EMAIL')
-RECEIVER_EMAIL = os.environ.get('MY_EMAIL')
 APP_PASSWORD = os.environ.get('MY_PASSWORD')
+
+# 讀取訂閱者字串，如果 Secret 沒設定，預設只寄給自己
+raw_subscribers = os.environ.get('SUBSCRIBERS', SENDER_EMAIL)
+# 將字串轉換為 Python 清單 (List)
+RECEIVER_EMAILS = [email.strip() for email in raw_subscribers.split(',')]
 
 def get_stock_data():
     """使用證交所 Open Data CSV"""
