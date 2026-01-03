@@ -23,8 +23,9 @@ jobs:
           pip install requests pandas
 
       - name: 4. 執行 Python 程式
+        - name: 4. 執行 Python 程式
         env:
-          # 將剛剛設定的 Secrets 傳入 Python 環境
           MY_EMAIL: ${{ secrets.MY_EMAIL }}
           MY_PASSWORD: ${{ secrets.MY_PASSWORD }}
+          SUBSCRIBERS: ${{ secrets.SUBSCRIBERS }} # 新增這一行
         run: python stock_mail.py
