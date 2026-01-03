@@ -23,9 +23,8 @@ jobs:
           pip install requests pandas
 
       - name: 4. 執行 Python 程式
-        - name: 4. 執行 Python 程式
         env:
           MY_EMAIL: ${{ secrets.MY_EMAIL }}
           MY_PASSWORD: ${{ secrets.MY_PASSWORD }}
-          SUBSCRIBERS: ${{ secrets.SUBSCRIBERS }} # 新增這一行
+          SUBSCRIBERS: ${{ secrets.SUBSCRIBERS }}
         run: python stock_mail.py
